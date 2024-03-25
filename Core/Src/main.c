@@ -15,46 +15,10 @@
   *
   ******************************************************************************
   */
-/* USER CODE END Header */
-/* Includes ------------------------------------------------------------------*/
+
 #include "main.h"
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
-
-/* Private variables ---------------------------------------------------------*/
-
-/* USER CODE BEGIN PV */
-
-/* USER CODE END PV */
-
-/* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-/* USER CODE BEGIN PFP */
-
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
 
 /**
   * @brief  The application entry point.
@@ -62,40 +26,49 @@ void SystemClock_Config(void);
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
   SystemClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
-  /* USER CODE BEGIN 2 */
-
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
+	
+	// Enable GPIOB and GPIOC in the RCC.
+	RCC->AHBENR  |= (RCC_AHBENR_GPIOBEN)|(RCC_AHBENR_GPIOCEN); // Enables the GPIOB/GPIOC clock in the RCC.
+	// Enable the I2C2 peripheral in the RCC.
+	RCC->APB1ENR |= (RCC_APB1ENR_I2C2EN);
+	
+	// Set PB11 to alternate function mode, open-drain output type, and select I2C2_SDA as its alternate function.
+	GPIOB->MODER |= (1 << 23);  // Set PB11 to alternate mode. (1s)
+	GPIOB->MODER &= ~(1 << 22); // Set PB11 to alternate mode. (0s)
+	GPIOB->OTYPER |= (1 << 11); // Set PB11 to open-drain.
+	GPIOB->AFR[1] |= (1 << 12); // Set PB11 to AF1 I2C2_SDA. (1s)
+	GPIOB-> AFR[1] &= ~((1 << 13)|(1 << 14)|(1 << 15)); // Set PB11 to AF1 I2C2_SDA. (0s)
+	
+	// Set PB13 to alternate function mode, open-drain output type, and select I2C2_SCL as its alternate function.
+	GPIOB->MODER |= (1 << 27);  // Set PB13 to alternate mode. (1s)
+	GPIOB->MODER &= ~(1 << 26); // Set PB13 to alternate mode. (0s)
+	GPIOB->OTYPER |= (1 << 13); // Set PB13 to open-drain.
+	GPIOB->AFR[1] |= (1 << 20)|(1 << 22); // Set PB13 to AF1 I2C2_SCL. (1s)
+	GPIOB-> AFR[1] &= ~((1 << 21)|(1 << 23)); // Set PB13 to AF1 I2C2_SCL. (0s)
+	
+	// Set PB14 to output mode, push-pull output type, and initialize/set the pin high.
+	GPIOB->MODER |= (1 << 28);  // Set PB14 to output mode. (1s)
+	GPIOB->MODER &= ~(1 << 29); // Set PB14 to output mode. (0s)
+	GPIOB->OTYPER &= ~(1 << 14); // Set PB14 to push-pull.
+	GPIOB->BSRR |= (1 << 14); // Initialize PB14 to high.
+	
+	// Set PC0 to output mode, push-pull output type, and initialize/set the pin high.
+	GPIOC->MODER |= (1 << 0); // Set PC0 to output mode. (1s)
+	GPIOC->MODER &= ~(1 << 1); // Set PC0 to output mode. (0s)
+	GPIOC->OTYPER &= ~(1 << 0); // Set PC0 to push-pull.
+	GPIOC->BSRR |= (1 << 0); // Initialize PC0 to high.
+	
+	// Set the parameters in the TIMINGR register to use 100 kHz standard-mode I2C.
+	I2C2->TIMINGR |= (0x13 << 0) | (0x0F << 8) | (0x2 << 16) | (0x4 << 20) | (0x1 << 28);
+	// Enable the I2C peripheral using the PE bit in the CR1 register.
+	I2C2->CR1 |= (1 << 0);
+	
   while (1)
   {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
+		
   }
-  /* USER CODE END 3 */
 }
 
 /**

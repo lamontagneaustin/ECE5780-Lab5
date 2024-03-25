@@ -21,7 +21,7 @@
 void SystemClock_Config(void);
 void toggleRED(void);
 void toggleBLUE(void);
-void WRITE_I2C(void);
+void READ_I2C(void);
 
 /**
   * @brief  The application entry point.
@@ -74,25 +74,29 @@ int main(void)
 	// Enable the I2C peripheral using the PE bit in the CR1 register.
 	I2C2->CR1 |= (1 << 0);
 	
+	
 	/* Clear the NBYTES and SADD bit fields
 	* The NBYTES field begins at bit 16, the SADD at bit 0
 	*/
-	I2C2->CR2 &= ~((0x7F << 16) | (0x3FF << 0));
+	//I2C2->CR2 &= ~((0x7F << 16) | (0x3FF << 0));
 	/* Set NBYTES = 42 and SADD = 0x14
 	* Can use hex or decimal values directly as bitmasks.
 	* Remember that for 7-bit addresses, the lowest SADD bit
 	* is not used and the mask must be shifted by one.
 	*/
-	I2C2->CR2 |= (1 << 16) | (0x69 << 1);
+	//I2C2->CR2 |= (1 << 16) | (0x69 << 1);
 	
 	// Set to write.
-	I2C2->CR2 |= (1 << 10);
+	//I2C2->CR2 |= (1 << 10);
 	// Set start bit to 1.
-	I2C2->CR2 |= (1 << 13);
+	//I2C2->CR2 |= (1 << 13);
 	
 	
   while (1)
   {
+		HAL_Delay(200);
+		READ_I2C();
+		/*
 		while( !((I2C2->ISR & 0x4) | (I2C2->ISR & 0x10))){ // WAITS FOR RXNE or NACKF to set.
 		}
 		
@@ -110,10 +114,14 @@ int main(void)
 			}
 			I2C2->CR2 |= (1 << 14); // STOPS Transmission
 		}
+		*/
 	}
 }
 
-void WRITE_I2C(void){
+void READ_I2C(void){
+	
+	//I2C2->TXDR = 0x00;
+	//I2C2->RXDR = 0x00;
 	
 	/* Clear the NBYTES and SADD bit fields
 	* The NBYTES field begins at bit 16, the SADD at bit 0
@@ -130,22 +138,40 @@ void WRITE_I2C(void){
 	// Set start bit to 1.
 	I2C2->CR2 |= (1 << 13);
 	
-	while( !((I2C2->ISR & 0x2) | (I2C2->ISR & 0x10))){
-		}
+	while( !((I2C2->ISR & 0x2) | (I2C2->ISR & 0x10))){}
 	
-		if(I2C2->ISR & 0x2){ // TXIS FLAG	
-			I2C2->TXDR = 0x0F;
-		}
-		else if (I2C2->ISR & 0x10){ // NACKF FLAG
+	if(I2C2->ISR & 0x10){ // NACKF FLAG
+		toggleRED();
+	}
+	else if(I2C2->ISR & 0x2) { // TXIS FLAG	
+		I2C2->TXDR = 0x0F;
+	}
+		
+	while( !(I2C2->ISR & 0x40) ) {}
+			
+	if(I2C2->ISR & 0x40){
+	}
+		
+	I2C2->CR2 &= ~((0x7F << 16) | (0x3FF << 0));
+	I2C2->CR2 |= (1 << 16) | (0x69 << 1);
+	I2C2->CR2 |= (1 << 10);
+	I2C2->CR2 |= (1 << 13);
+		
+	while( !((I2C2->ISR & 0x4) | (I2C2->ISR & 0x10))){} // WAITS FOR RXNE or NACKF to set.
+		
+	if (I2C2->ISR & 0x10){ // NACKF FLAG
+		toggleRED();
+	}
+	else if(I2C2->ISR & 0x4){}// RXNE FLAG	
+		
+	while( !(I2C2->ISR & 0x40) ) {} // WAIT FOR TC flag.
+			
+	if(I2C2->ISR & 0x40){
+		if(I2C2->RXDR & 0xC3){
 			toggleBLUE();
 		}
-		
-		while( !(I2C2->ISR & 0x40) ) {}
-			
-		if(I2C2->ISR & 0x40){
-			toggleRED();
-			I2C2->CR2 |= (1 << 14); // STOPS Transmission
-		}
+		I2C2->CR2 |= (1 << 14); // STOPS Transmission
+	}
 }
 
 

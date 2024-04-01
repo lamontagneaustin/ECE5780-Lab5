@@ -19,8 +19,14 @@
 #include "main.h"
 
 void SystemClock_Config(void);
+void setRED(char value);
 void toggleRED(void);
+void setBLUE(char value);
 void toggleBLUE(void);
+void setGREEN(char value);
+void toggleGREEN(void);
+void setORANGE(char value);
+void toggleORANGE(void);
 char READ_I2C(char reg);
 void WRITE_I2C(char reg, char val);
 
@@ -43,6 +49,12 @@ int main(void)
 	GPIOC->OTYPER  &= ~((1 << 6) | (1 << 7));
 	GPIOC->OSPEEDR &= ~((1 << 12) | (1 << 14));
 	GPIOC->PUPDR   &= ~((1 << 12) | (1 << 13) | (1 << 14) | (1 << 15));
+	
+	// Configures GPIOC Pins 8 and 9 (ORANGE LED and GREEN LED)
+	GPIOC->MODER   |=  (1 << 16) | (1 << 18);
+	GPIOC->OTYPER  &= ~((1 << 8) | (1 << 9));
+	GPIOC->OSPEEDR &= ~((1 << 16) | (1 << 18));
+	GPIOC->PUPDR   &= ~((1 << 16) | (1 << 17) | (1 << 18) | (1 << 19));
 	
 	// Set PB11 to alternate function mode, open-drain output type, and select I2C2_SDA as its alternate function.
 	GPIOB->MODER |= (1 << 23);  // Set PB11 to alternate mode. (1s)
@@ -93,17 +105,44 @@ int main(void)
 	//I2C2->CR2 |= (1 << 13);
 	int test = 0;
 	
+	char OUT_X_L = 0x00;
+	char OUT_X_H = 0x00;
+	char OUT_Y_L = 0x00;
+	char OUT_Y_H = 0x00;
+	
+	int x_val = 0;
+	int y_val = 0;
+	
+	WRITE_I2C(0x20, 0x0F);
+	
   while (1)
   {
-		if (test < 1){
-			WRITE_I2C(0x20, 0x0F);			
-			if(READ_I2C(0x20) == 0x0F){
-				toggleBLUE();
-			}
-			
-			test++;
+		OUT_X_L = READ_I2C(0x28);
+		OUT_X_H = READ_I2C(0x29);
+		x_val = (OUT_X_H << 8) + OUT_X_L; 
+		OUT_Y_L = READ_I2C(0x2A);
+		OUT_Y_H = READ_I2C(0x2B);
+		y_val = (OUT_Y_H << 8) + OUT_Y_L; 
+		
+		if(y_val < 32767 && y_val > 2000){
+			setRED('1');
+			setBLUE('0');
 		}
-		HAL_Delay(1000);
+		else if(y_val > 32767 && y_val < 63535) {
+			setRED('0');
+			setBLUE('1');
+		}
+		
+		if(x_val < 32767 && x_val > 2000){
+			setORANGE('0');
+			setGREEN('1');
+		}
+		else if(x_val > 32767 && x_val < 63535){
+			setORANGE('1');
+			setGREEN('0');
+		}
+		
+		HAL_Delay(100);
 	}
 }
 
@@ -122,7 +161,7 @@ char READ_I2C(char reg){
 	while( !((I2C2->ISR & 0x2) | (I2C2->ISR & 0x10))){} // 0x2 = TXIS and 0x10 = NACKF.
 	
 	if(I2C2->ISR & 0x10){ // NACKF FLAG
-		toggleRED();
+		//toggleRED();
 	}
 	else if(I2C2->ISR & 0x2) { // TXIS FLAG	
 		I2C2->TXDR = reg;
@@ -142,7 +181,7 @@ char READ_I2C(char reg){
 	while( !((I2C2->ISR & 0x4) | (I2C2->ISR & 0x10))){} // WAITS FOR RXNE or NACKF to set.
 		
 	if (I2C2->ISR & 0x10){ // NACKF FLAG
-		toggleRED();
+		//toggleRED();
 	}
 	else if(I2C2->ISR & 0x4){ // RXNE FLAG
 	}
@@ -171,7 +210,7 @@ void WRITE_I2C(char reg, char val){
 	while( !((I2C2->ISR & 0x2) | (I2C2->ISR & 0x10))){} // 0x2 = TXIS and 0x10 = NACKF.
 	
 	if(I2C2->ISR & 0x10){ // NACKF FLAG
-		toggleRED();
+		//toggleRED();
 	}
 	else if(I2C2->ISR & 0x2) { // TXIS FLAG	
 		I2C2->TXDR = reg;
@@ -180,7 +219,7 @@ void WRITE_I2C(char reg, char val){
 	while( !((I2C2->ISR & 0x2) | (I2C2->ISR & 0x10))){} // 0x2 = TXIS and 0x10 = NACKF.
 	
 	if(I2C2->ISR & 0x10){ // NACKF FLAG
-		toggleRED();
+		//toggleRED();
 	}
 	else if(I2C2->ISR & 0x2) { // TXIS FLAG	
 		I2C2->TXDR = val;
@@ -194,10 +233,6 @@ void WRITE_I2C(char reg, char val){
 	
 }
 
-/**
-	* @brief Toggles RED LED.
-	* @retval None
-	*/
 void toggleRED(void){
 	// Toggle Pin PC6 (RED).
 	if(GPIOC->IDR & 0x40){
@@ -205,6 +240,19 @@ void toggleRED(void){
 	}
 	else{
 		GPIOC->BSRR |= (1 << 6); // Sets State of PC6.
+	}
+}
+
+/**
+	* @brief Sets RED LED.
+	* @retval None
+	*/
+void setRED(char value){
+	if(value == '1'){
+		GPIOC->BSRR |= (1 << 6); // Sets State of PC6.
+	}
+	else if(value == '0'){
+		GPIOC->BSRR |= (1 << 22); // Resets State of PC6.
 	}
 }
 
@@ -219,6 +267,73 @@ void toggleBLUE(void){
 	}
 	else{
 		GPIOC->BSRR |= (1 << 7); // Sets State of PC7.
+	}
+}
+
+/**
+	* @brief Sets BLUE LED.
+	* @retval None
+	*/
+void setBLUE(char value){
+	if(value == '1'){
+		GPIOC->BSRR |= (1 << 7); // Sets State of PC7.
+	}
+	else if(value == '0'){
+		GPIOC->BSRR |= (1 << 23); // Resets State of PC7.
+	}
+}
+
+/**
+	* @brief Toggles ORANGE LED.
+	* @retval None
+	*/
+void toggleORANGE(void){
+	// Toggle Pin PC8 (ORANGE).
+	if(GPIOC->IDR & 0x100){
+		GPIOC->BSRR |= (1 << 24); // Resets State of PC8.
+	}
+	else{
+		GPIOC->BSRR |= (1 << 8); // Sets State of PC8.
+	}
+}
+
+/**
+	* @brief Sets ORANGE LED.
+	* @retval None
+	*/
+void setORANGE(char value){
+	if(value == '1'){
+		GPIOC->BSRR |= (1 << 8); // Sets State of PC8.
+	}
+	else if(value == '0'){
+		GPIOC->BSRR |= (1 << 24); // Resets State of PC8.
+	}
+}
+
+/**
+	* @brief Toggles GREEN LED.
+	* @retval None
+	*/
+void toggleGREEN(void){
+	// Toggle Pin PC9 (GREEN).
+	if(GPIOC->IDR & 0x200){
+		GPIOC->BSRR |= (1 << 25); // Resets State of PC9.
+	}
+	else{
+		GPIOC->BSRR |= (1 << 9); // Sets State of PC9.
+	}
+}
+
+/**
+	* @brief Sets GREEN LED.
+	* @retval None
+	*/
+void setGREEN(char value){
+	if(value == '1'){
+		GPIOC->BSRR |= (1 << 9); // Sets State of PC9.
+	}
+	else if(value == '0'){
+		GPIOC->BSRR |= (1 << 25); // Resets State of PC9.
 	}
 }
 

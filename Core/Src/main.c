@@ -22,6 +22,7 @@ void SystemClock_Config(void);
 void toggleRED(void);
 void toggleBLUE(void);
 void READ_I2C(void);
+void READ_I2C_INITIAL(void);
 
 /**
   * @brief  The application entry point.
@@ -90,12 +91,16 @@ int main(void)
 	//I2C2->CR2 |= (1 << 10);
 	// Set start bit to 1.
 	//I2C2->CR2 |= (1 << 13);
-	
+	int test = 0;
 	
   while (1)
   {
+		if (test < 1){
+			READ_I2C();
+			test++;
+		}
 		HAL_Delay(200);
-		READ_I2C();
+		
 		/*
 		while( !((I2C2->ISR & 0x4) | (I2C2->ISR & 0x10))){ // WAITS FOR RXNE or NACKF to set.
 		}
@@ -120,6 +125,56 @@ int main(void)
 
 void READ_I2C(void){
 	
+	I2C2->CR2 &= ~((0x7F << 16) | (0x3FF << 0)); // Clears NBYTES and SADD bit fields and sets them all to zero.
+	I2C2->CR2 |= (1 << 16) | (0x69 << 1); // Sets NBYTES = 1 and SADD to 0x69 or the addr. of the slave device(gyro).
+	
+	I2C2->CR2 &= ~(1 << 10); // Set to write.
+	I2C2->CR2 |= (1 << 13); // Set start bit to 1.
+	
+	while( !((I2C2->ISR & 0x2) | (I2C2->ISR & 0x10))){} // 0x2 = TXIS and 0x10 = NACKF.
+	
+	if(I2C2->ISR & 0x10){ // NACKF FLAG
+		toggleRED();
+	}
+	else if(I2C2->ISR & 0x2) { // TXIS FLAG	
+		I2C2->TXDR = 0x0F;
+	}
+	
+	while( !(I2C2->ISR & 0x40) ) {}
+			
+	if(I2C2->ISR & 0x40){	
+		//SET UP FOR READ OPERATION
+		I2C2->CR2 &= ~((0x7F << 16) | (0x3FF << 0)); // Clears NBYTES and SADD bit fields and sets them all to zero.
+		I2C2->CR2 |= (1 << 16) | (0x69 << 1); // Sets NBYTES = 1 and SADD to 0x69 or the addr. of the slave device(gyro).
+		I2C2->CR2 |= (1 << 10); // Set to read.
+		I2C2->CR2 |= (1 << 13); // Set start bit to 1 for RESTART.
+		//toggleBLUE();
+		//I2C2->CR2 |= (1 << 14); // STOPS Transmission
+	}
+	
+	while( !((I2C2->ISR & 0x4) | (I2C2->ISR & 0x10))){} // WAITS FOR RXNE or NACKF to set.
+		
+	if (I2C2->ISR & 0x10){ // NACKF FLAG
+		toggleRED();
+	}
+	else if(I2C2->ISR & 0x4){ // RXNE FLAG
+	}
+	
+	while( !(I2C2->ISR & 0x40) ) {}
+		
+	if(I2C2->ISR & 0x40){
+		
+		if(I2C2->RXDR == 0xD3){
+			toggleBLUE();
+		}
+		
+		I2C2->CR2 |= (1 << 14); // STOPS Transmission
+	}
+	
+}
+
+void READ_I2C_INITIAL(void){
+	
 	//I2C2->TXDR = 0x00;
 	//I2C2->RXDR = 0x00;
 	
@@ -138,7 +193,7 @@ void READ_I2C(void){
 	// Set start bit to 1.
 	I2C2->CR2 |= (1 << 13);
 	
-	while( !((I2C2->ISR & 0x2) | (I2C2->ISR & 0x10))){}
+	while( !((I2C2->ISR & 0x2) | (I2C2->ISR & 0x10))){} // 0x2 = TXIS and 0x10 = NACKF.
 	
 	if(I2C2->ISR & 0x10){ // NACKF FLAG
 		toggleRED();
@@ -167,8 +222,8 @@ void READ_I2C(void){
 	while( !(I2C2->ISR & 0x40) ) {} // WAIT FOR TC flag.
 			
 	if(I2C2->ISR & 0x40){
-		if(I2C2->RXDR & 0xC3){
-			toggleBLUE();
+		if(I2C2->RXDR & 0xF3){
+			//toggleBLUE();
 		}
 		I2C2->CR2 |= (1 << 14); // STOPS Transmission
 	}
